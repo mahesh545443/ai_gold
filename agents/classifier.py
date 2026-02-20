@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from pathlib import Path
+import streamlit as st
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -18,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 class ClassificationAgent:
     def __init__(self):
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
-        self.token = os.getenv("GROQ_API_KEY")
+        self.token = st.secrets["GROQ_API_KEY"]
         if not self.token:
             raise ValueError("❌ GROQ_API_KEY missing from .env!")
         self.model = "llama-3.3-70b-versatile"
