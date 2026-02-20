@@ -7,6 +7,10 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ── SECRETS — load GROQ key from Streamlit secrets ───────────────
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+
 from agents.intake import IntakeAgent
 from agents.classifier import ClassificationAgent
 from agents.rag_agent import RAGPricingAgent
@@ -15,7 +19,24 @@ from agents.negotiation_agent import NegotiationAgent
 
 st.set_page_config(page_title="Analytics Avenue | AI Gold Negotiation", layout="wide", page_icon="⚜️")
 
-LOGO_PATH = r"C:\Users\User\Downloads\gold_jewellery_ai_automation\aard_new_logo.png"
+# ── LOGO — tries multiple locations, works on Windows + Linux ─────
+def find_logo():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(base_dir, "aard_new_logo.png"),          # same folder as main.py
+        os.path.join(base_dir, "assets", "aard_new_logo.png"),# assets subfolder
+        "aard_new_logo.png",                                   # current working dir
+        r"C:\Users\User\Downloads\gold_jewellery_ai_automation\aard_new_logo.png",  # Windows local
+    ]
+    for p in candidates:
+        try:
+            if os.path.exists(p):
+                return p
+        except Exception:
+            pass
+    return None
+
+LOGO_PATH = find_logo()
 
 st.markdown("""
 <style>
@@ -50,6 +71,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #fff;
 .pw { background:#F5F5F5; color:#9E9E9E; border:1px solid #E0E0E0; }
 
 .waiting { background:#FFF3E0; border:1px solid #FFB74D; border-radius:8px; padding:14px 18px; font-size:13px; color:#E65100; }
+
+.logo-wrap { display:flex; align-items:center; gap:16px; padding:16px 0 8px; }
+.logo-text  { font-size:20px; font-weight:700; color:#1A3A6B; line-height:1.35; }
+.logo-box   { width:54px; height:54px; background:#1A3A6B; border-radius:8px;
+              display:flex; align-items:center; justify-content:center;
+              font-size:18px; font-weight:700; color:white; letter-spacing:1px; flex-shrink:0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -92,26 +119,39 @@ def show_calc(item):
                         unsafe_allow_html=True)
 
 def show_logo():
-    try:
-        with open(LOGO_PATH, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        st.markdown(f"""
-        <div style="display:flex;align-items:center;gap:16px;padding:16px 0 8px;">
-            <img src="data:image/png;base64,{b64}" style="height:56px;width:auto;"/>
-            <div style="font-size:20px;font-weight:700;color:#1A3A6B;line-height:1.3;">
-                Analytics Avenue &amp;<br/>Advanced Analytics
+    """
+    Show logo image if found.
+    Fallback: clean navy 'AA' box — NO emoji at all.
+    For Streamlit Cloud: copy aard_new_logo.png into root of your repo.
+    """
+    if LOGO_PATH:
+        try:
+            with open(LOGO_PATH, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            st.markdown(f"""
+            <div class="logo-wrap">
+                <img src="data:image/png;base64,{b64}"
+                     style="height:54px;width:auto;object-fit:contain;flex-shrink:0;"/>
+                <div class="logo-text">
+                    Analytics Avenue &amp;<br/>Advanced Analytics
+                </div>
             </div>
+            <hr style="border:none;border-top:1px solid #EBEBEB;margin:4px 0 16px;"/>
+            """, unsafe_allow_html=True)
+            return
+        except Exception:
+            pass
+
+    # Fallback — navy AA box, no emoji
+    st.markdown("""
+    <div class="logo-wrap">
+        <div class="logo-box">AA</div>
+        <div class="logo-text">
+            Analytics Avenue &amp;<br/>Advanced Analytics
         </div>
-        <hr style="border:none;border-top:1px solid #EBEBEB;margin:8px 0 16px;"/>
-        """, unsafe_allow_html=True)
-    except Exception:
-        st.markdown("""
-        <div style="display:flex;align-items:center;gap:12px;padding:16px 0 8px;">
-            <div style="font-size:28px;">⚜️</div>
-            <div style="font-size:20px;font-weight:700;color:#1A3A6B;">Analytics Avenue &amp; Advanced Analytics</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #EBEBEB;margin:8px 0 16px;"/>
-        """, unsafe_allow_html=True)
+    </div>
+    <hr style="border:none;border-top:1px solid #EBEBEB;margin:4px 0 16px;"/>
+    """, unsafe_allow_html=True)
 
 def make_email(ai, pricing):
     customer = ai.get("customer_name","Valued Customer")
@@ -125,32 +165,33 @@ def make_email(ai, pricing):
     lines    = ""
     for item in pricing.get("line_items",[]):
         if item.get("product_name") != "NOT MATCHED":
-            lines += (f"  • {item.get('product_name')} | Qty: {item.get('qty')} | "
-                      f"Unit: ₹{item.get('invoice_price_per_unit',0):,.2f} | "
-                      f"Total: ₹{item.get('line_total_invoice',0):,.2f}\n")
+            lines += (f"  - {item.get('product_name')} | Qty: {item.get('qty')} | "
+                      f"Unit: Rs.{item.get('invoice_price_per_unit',0):,.2f} | "
+                      f"Total: Rs.{item.get('line_total_invoice',0):,.2f}\n")
     return {
         "to": email,
-        "subject": f"Commercial Quotation — Gold Products | Analytics Avenue | {date_str}",
+        "subject": f"Commercial Quotation - Gold Products | Analytics Avenue | {date_str}",
         "body": f"""Dear {customer},
 
 Thank you for your Request for Quotation. Please find our commercial quotation below.
 
 ITEMS:
 {lines}
-Sub Total (Pre-GST) : ₹{pretax:,.2f}
-CGST @ 1.5%         : ₹{cgst:,.2f}
-SGST @ 1.5%         : ₹{sgst:,.2f}
-─────────────────────────────────
-GRAND TOTAL         : ₹{total:,.2f} (Incl. GST)
+Sub Total (Pre-GST) : Rs.{pretax:,.2f}
+CGST @ 1.5%         : Rs.{cgst:,.2f}
+SGST @ 1.5%         : Rs.{sgst:,.2f}
+-------------------------------------
+GRAND TOTAL         : Rs.{total:,.2f} (Incl. GST)
 
-Gold Rate Used: ₹{live:,.2f}/gram (24K, MCX Live as on {date_str})
-Detailed PDF quotation is attached for your reference.
-Validity: 7 days from date of issue.
+Gold Rate Used : Rs.{live:,.2f}/gram (24K, MCX Live as on {date_str})
+PDF quotation  : Attached for your reference
+Validity       : 7 days from date of issue
 
 We look forward to your response.
 
 Warm regards,
-Sales Team — Analytics Avenue & Advanced Analytics
+Sales Team
+Analytics Avenue & Advanced Analytics
 Email: sales@analyticsavenue.com | Phone: +91-44-2345-6789"""
     }
 
@@ -160,7 +201,7 @@ def make_neg_email(ai, rnd):
     date_str = datetime.now().strftime("%d-%B-%Y")
     return {
         "to": email,
-        "subject": f"Re: Commercial Quotation — {'Counter Offer' if decision=='COUNTER_OFFER' else decision} | Analytics Avenue | {date_str}",
+        "subject": f"Re: Commercial Quotation - {'Counter Offer' if decision=='COUNTER_OFFER' else decision} | Analytics Avenue | {date_str}",
         "body": rnd.get("reply_email_draft","—")
     }
 
@@ -179,11 +220,15 @@ def reset():
     for k in list(st.session_state.keys()): del st.session_state[k]
     st.rerun()
 
-# ── LOGO + TITLE ──────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════
+#  LOGO + TITLE
+# ══════════════════════════════════════════════════════════════════
 show_logo()
 st.markdown("## AI Gold Negotiation Orchestrator")
 
-# ── TABS ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════
+#  TABS
+# ══════════════════════════════════════════════════════════════════
 t1, t2 = st.tabs(["Overview", "Application"])
 
 # ═════════════════════════════════════════════════════════════════
@@ -206,7 +251,7 @@ with t1:
         st.markdown("""<div class="card"><ul style="margin:0;padding-left:16px;font-size:13px;line-height:2.1;">
             <li>Upload buyer RFQ — <b>.txt / .docx / .pdf</b></li>
             <li>AI classification: <b>HOT / WARM / COLD</b> with TAT</li>
-            <li>Live <b>MCX/COMEX gold price</b> — USD/oz → INR/gram</li>
+            <li>Live <b>MCX/COMEX gold price</b> — USD/oz to INR/gram</li>
             <li>ChromaDB <b>vector search</b> — product matching</li>
             <li><b>7-step pricing formula</b> — full transparency in UI</li>
             <li>Guaranteed <b>30% pre-GST margin</b> on every quote</li>
@@ -222,33 +267,33 @@ with t1:
         <div style="font-family:monospace;font-size:12px;line-height:2.1;color:#333;">
             <b style="color:#8B6914">From CSV:</b> C=PurchaseCost/g | M=Making/g | W%=Wastage | P=Packaging | H=Hallmark<br/>
             <b style="color:#8B6914">From Live:</b> L = MCX Gold Price (INR/gram)<br/><br/>
-            ① BaseCost/g  = C + M + (C × W%)<br/>
-            ② UnitRawCost = (BaseCost × Weight) + P + H<br/>
-            ③ MarketFactor = max(L ÷ C, 1.0)<br/>
-            ④ AdjustedCost = UnitRawCost × MarketFactor<br/>
-            ⑤ <b>SellingPrice = AdjustedCost ÷ 0.70</b> ← 30% margin<br/>
-            ⑥ CGST = SellingPrice × 1.5% | SGST = SellingPrice × 1.5%<br/>
-            ⑦ <b>InvoicePrice = SellingPrice + CGST + SGST</b>
+            (1) BaseCost/g   = C + M + (C x W%)<br/>
+            (2) UnitRawCost  = (BaseCost x Weight) + P + H<br/>
+            (3) MarketFactor = max(L / C, 1.0)<br/>
+            (4) AdjustedCost = UnitRawCost x MarketFactor<br/>
+            (5) <b>SellingPrice = AdjustedCost / 0.70</b>  &lt;-- 30% margin<br/>
+            (6) CGST = SellingPrice x 1.5% | SGST = SellingPrice x 1.5%<br/>
+            (7) <b>InvoicePrice = SellingPrice + CGST + SGST</b>
         </div></div>""", unsafe_allow_html=True)
 
         st.markdown('<div class="sec">Negotiation Logic</div>', unsafe_allow_html=True)
         st.markdown("""<div class="card">
         <div style="font-size:13px;line-height:2.1;">
             Quote at <b>30% margin</b>. Floor = <b>20% margin</b><br/>
-            Floor = AdjustedCost ÷ 0.80 (per item)<br/><br/>
-            ✅ <b>ACCEPT</b>  → Buyer ≥ Our Quote<br/>
-            🔄 <b>COUNTER</b> → Floor ≤ Buyer &lt; Quote → midpoint<br/>
-            ❌ <b>REJECT</b>  → Buyer &lt; 20% floor<br/>
+            Floor = AdjustedCost / 0.80 (per item)<br/><br/>
+            <b>ACCEPT</b>  — Buyer is greater than or equal to Our Quote<br/>
+            <b>COUNTER</b> — Floor less than or equal to Buyer less than Quote, midpoint offered<br/>
+            <b>REJECT</b>  — Buyer is below 20% floor<br/>
             <span style="font-size:11px;color:#999;">All math in Python. LLM writes the email only.</span>
         </div></div>""", unsafe_allow_html=True)
 
         st.markdown('<div class="sec">Business Impact</div>', unsafe_allow_html=True)
         st.markdown("""<div class="card"><ul style="margin:0;padding-left:16px;font-size:13px;line-height:2.1;">
-            <li>🛡️ <b>Never undersell</b> — 30% margin locked in</li>
-            <li>⚡ <b>Instant quotes</b> — RFQ to PDF in 30 seconds</li>
-            <li>📧 <b>Auto email drafts</b> — quote + negotiation emails ready</li>
-            <li>🤝 <b>Auto-negotiation</b> — no manual intervention needed</li>
-            <li>📄 <b>Professional PDFs</b> — logo, GST, T&C, bank details</li>
+            <li><b>Never undersell</b> — 30% margin locked in every quote</li>
+            <li><b>Instant quotes</b> — RFQ to PDF in 30 seconds</li>
+            <li><b>Auto email drafts</b> — quote + negotiation emails ready</li>
+            <li><b>Auto-negotiation</b> — no manual intervention needed</li>
+            <li><b>Professional PDFs</b> — logo, GST, T&C, bank details</li>
         </ul></div>""", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -273,7 +318,7 @@ with t1:
 # ═════════════════════════════════════════════════════════════════
 with t2:
 
-    # Pipeline status
+    # Pipeline status bar
     for col, (name, label) in zip(st.columns(4), [
         ("UPLOAD","📂 Upload RFQ"),("PRICED","📊 Priced"),
         ("QUOTED","📄 Quote & Email"),("DONE","✅ Closed"),
@@ -308,8 +353,8 @@ with t2:
 
                     with st.status("📊 RAG Pricing — Live MCX + Product Match...", expanded=True):
                         pricing = get_rag().lookup_and_price(ai)
-                        st.write(f"✅ Live Gold 24K: **₹{pricing.get('live_gold_price_24k_inr',0):,.2f}/gram** ({pricing.get('price_source')})")
-                        st.write(f"✅ Grand Total: **₹{pricing.get('grand_total_invoice',0):,.2f}**")
+                        st.write(f"✅ Live Gold 24K: **Rs.{pricing.get('live_gold_price_24k_inr',0):,.2f}/gram** ({pricing.get('price_source')})")
+                        st.write(f"✅ Grand Total: **Rs.{pricing.get('grand_total_invoice',0):,.2f}**")
 
                     st.session_state.ai      = ai
                     st.session_state.pricing = pricing
@@ -321,11 +366,11 @@ with t2:
             st.markdown("""<div class="card-gold">
                 <b style="color:#8B6914">What happens when you click Run?</b>
                 <div style="font-size:13px;line-height:1.9;color:#555;margin-top:8px;">
-                    1. File read → buyer info extracted<br/>
-                    2. Groq LLaMA classifies &amp; extracts items<br/>
+                    1. File read — buyer info extracted<br/>
+                    2. Groq LLaMA classifies and extracts items<br/>
                     3. Products matched from gold catalogue<br/>
-                    4. Live MCX price fetched &amp; quote calculated<br/>
-                    5. Review pricing → Generate PDF → Send Email
+                    4. Live MCX price fetched and quote calculated<br/>
+                    5. Review pricing — Generate PDF — Send Email
                 </div>
             </div>
             <div class="card">
@@ -339,9 +384,9 @@ with t2:
         st.markdown('<div class="sec">📊 Live Pricing Results</div>', unsafe_allow_html=True)
 
         for col, (val, lbl, clr) in zip(st.columns(4), [
-            (f"₹{pricing.get('live_gold_price_24k_inr',0):,.2f}", "Live Gold 24K / gram", "#8B6914"),
-            (f"${pricing.get('gold_usd_per_oz',0):,.2f}",          "Gold USD / oz",        "#555"),
-            (f"₹{pricing.get('usd_inr_rate',0):,.2f}",             "USD / INR",            "#555"),
+            (f"Rs.{pricing.get('live_gold_price_24k_inr',0):,.2f}", "Live Gold 24K / gram", "#8B6914"),
+            (f"${pricing.get('gold_usd_per_oz',0):,.2f}",            "Gold USD / oz",        "#555"),
+            (f"Rs.{pricing.get('usd_inr_rate',0):,.2f}",             "USD / INR",            "#555"),
             (pricing.get('price_source','—'), "Price Source",
              "#1A6B1A" if pricing.get('price_source')=='LIVE' else "#C0392B"),
         ]):
@@ -353,12 +398,13 @@ with t2:
 
         for idx, item in enumerate(pricing.get("line_items",[]), 1):
             if item.get("product_name") == "NOT MATCHED":
-                st.error(f"Item {idx}: '{item.get('requested_item')}' — not found in catalogue"); continue
+                st.error(f"Item {idx}: '{item.get('requested_item')}' — not found in catalogue")
+                continue
 
             with st.expander(
                 f"{'🥇' if item.get('purity')=='24K' else '🥈'} **{item.get('product_name')}**  |  "
-                f"Qty: {item.get('qty')}  |  Invoice/unit: ₹{item.get('invoice_price_per_unit',0):,.2f}  |  "
-                f"Line Total: ₹{item.get('line_total_invoice',0):,.2f}  |  Margin ✅ {item.get('actual_margin_percent',0):.1f}%",
+                f"Qty: {item.get('qty')}  |  Invoice/unit: Rs.{item.get('invoice_price_per_unit',0):,.2f}  |  "
+                f"Line Total: Rs.{item.get('line_total_invoice',0):,.2f}  |  Margin: {item.get('actual_margin_percent',0):.1f}%",
                 expanded=(idx==1)
             ):
                 L, R = st.columns(2)
@@ -370,12 +416,12 @@ with t2:
                         ("Purity",      item.get("purity")),
                         ("Weight/unit", f"{item.get('weight_per_unit_grams')}g"),
                         ("Qty",         item.get("qty")),
-                        ("Purchase/g",  f"₹{item.get('purchase_cost_per_gram',0):,.2f}"),
-                        ("Live MCX/g",  f"₹{item.get('live_price_per_gram',0):,.2f}"),
-                        ("Making/g",    f"₹{item.get('making_charges_per_gram',0):,.2f}"),
+                        ("Purchase/g",  f"Rs.{item.get('purchase_cost_per_gram',0):,.2f}"),
+                        ("Live MCX/g",  f"Rs.{item.get('live_price_per_gram',0):,.2f}"),
+                        ("Making/g",    f"Rs.{item.get('making_charges_per_gram',0):,.2f}"),
                         ("Wastage",     f"{item.get('wastage_percent',0)}%"),
-                        ("Packaging",   f"₹{item.get('packaging_cost',0):,.2f}"),
-                        ("Hallmarking", f"₹{item.get('hallmarking_fee',0):,.2f}"),
+                        ("Packaging",   f"Rs.{item.get('packaging_cost',0):,.2f}"),
+                        ("Hallmarking", f"Rs.{item.get('hallmarking_fee',0):,.2f}"),
                     ]:
                         st.markdown(f"<span style='color:#666;font-size:12px'>{k}:</span> "
                                     f"<b style='font-size:12px'>{v}</b>", unsafe_allow_html=True)
@@ -385,20 +431,20 @@ with t2:
 
                 st.markdown("---")
                 for col, (label, val) in zip(st.columns(5), [
-                    ("Selling Price/unit", f"₹{item.get('selling_price_per_unit',0):,.2f}"),
-                    ("CGST/unit",          f"₹{item.get('cgst_per_unit',0):,.2f}"),
-                    ("SGST/unit",          f"₹{item.get('sgst_per_unit',0):,.2f}"),
-                    ("Invoice/unit",       f"₹{item.get('invoice_price_per_unit',0):,.2f}"),
-                    ("Line Total",         f"₹{item.get('line_total_invoice',0):,.2f}"),
+                    ("Selling Price/unit", f"Rs.{item.get('selling_price_per_unit',0):,.2f}"),
+                    ("CGST/unit",          f"Rs.{item.get('cgst_per_unit',0):,.2f}"),
+                    ("SGST/unit",          f"Rs.{item.get('sgst_per_unit',0):,.2f}"),
+                    ("Invoice/unit",       f"Rs.{item.get('invoice_price_per_unit',0):,.2f}"),
+                    ("Line Total",         f"Rs.{item.get('line_total_invoice',0):,.2f}"),
                 ]):
                     with col: st.metric(label, val)
 
         st.markdown("---")
         for col, (label, val) in zip(st.columns(4), [
-            ("Sub Total (Pre-GST)", f"₹{pricing.get('grand_total_pretax',0):,.2f}"),
-            ("Total CGST (1.5%)",   f"₹{pricing.get('grand_total_cgst',0):,.2f}"),
-            ("Total SGST (1.5%)",   f"₹{pricing.get('grand_total_sgst',0):,.2f}"),
-            ("🏷️ GRAND TOTAL",      f"₹{pricing.get('grand_total_invoice',0):,.2f}"),
+            ("Sub Total (Pre-GST)", f"Rs.{pricing.get('grand_total_pretax',0):,.2f}"),
+            ("Total CGST (1.5%)",   f"Rs.{pricing.get('grand_total_cgst',0):,.2f}"),
+            ("Total SGST (1.5%)",   f"Rs.{pricing.get('grand_total_sgst',0):,.2f}"),
+            ("GRAND TOTAL",         f"Rs.{pricing.get('grand_total_invoice',0):,.2f}"),
         ]):
             with col: st.metric(label, val)
 
@@ -427,41 +473,41 @@ with t2:
         </div>""", unsafe_allow_html=True)
 
         for col, (label, val) in zip(st.columns(3), [
-            ("Pre-GST Total", f"₹{pricing.get('grand_total_pretax',0):,.2f}"),
-            ("GST (3%)",      f"₹{pricing.get('grand_total_gst',0):,.2f}"),
-            ("Invoice Total", f"₹{pricing.get('grand_total_invoice',0):,.2f}"),
+            ("Pre-GST Total", f"Rs.{pricing.get('grand_total_pretax',0):,.2f}"),
+            ("GST (3%)",      f"Rs.{pricing.get('grand_total_gst',0):,.2f}"),
+            ("Invoice Total", f"Rs.{pricing.get('grand_total_invoice',0):,.2f}"),
         ]):
             with col: st.metric(label, val)
 
         st.markdown("---")
 
-        # ── Past rounds ───────────────────────────────────────
+        # Past negotiation rounds
         if st.session_state.neg_rounds:
             st.markdown('<div class="sec">📧 Negotiation History</div>', unsafe_allow_html=True)
             for i, rnd in enumerate(st.session_state.neg_rounds, 1):
                 with st.expander(
                     f"Round {i} — **{rnd.get('decision')}**  |  "
-                    f"Buyer: ₹{rnd.get('buyer_offered_total_invoice',0):,.2f}  |  "
-                    f"Counter: ₹{rnd.get('new_invoice_total',0):,.2f}",
+                    f"Buyer: Rs.{rnd.get('buyer_offered_total_invoice',0):,.2f}  |  "
+                    f"Counter: Rs.{rnd.get('new_invoice_total',0):,.2f}",
                     expanded=False
                 ):
                     L, R = st.columns(2)
                     with L:
-                        st.markdown(f'<div class="cb"><b>🛒 Buyer:</b><br/>{rnd.get("buyer_message","—")}</div>',
+                        st.markdown(f'<div class="cb"><b>Buyer Message:</b><br/>{rnd.get("buyer_message","—")}</div>',
                                     unsafe_allow_html=True)
                         st.markdown("**Negotiation Calculation:**")
                         for lbl, val in [
-                            ("Buyer offered (incl. GST)",  f"₹{rnd.get('buyer_offered_total_invoice',0):,.2f}"),
-                            ("Buyer offered (pre-GST)",    f"₹{rnd.get('buyer_offered_pretax',0):,.2f}"),
-                            ("Our quote (pre-GST)",        f"₹{rnd.get('original_total_pretax',0):,.2f}"),
-                            ("20% floor (pre-GST)",        f"₹{rnd.get('floor_pretax',0):,.2f}"),
-                            ("20% floor (incl. GST)",      f"₹{rnd.get('floor_invoice',0):,.2f}"),
+                            ("Buyer offered (incl. GST)",  f"Rs.{rnd.get('buyer_offered_total_invoice',0):,.2f}"),
+                            ("Buyer offered (pre-GST)",    f"Rs.{rnd.get('buyer_offered_pretax',0):,.2f}"),
+                            ("Our quote (pre-GST)",        f"Rs.{rnd.get('original_total_pretax',0):,.2f}"),
+                            ("20% floor (pre-GST)",        f"Rs.{rnd.get('floor_pretax',0):,.2f}"),
+                            ("20% floor (incl. GST)",      f"Rs.{rnd.get('floor_invoice',0):,.2f}"),
                             ("Gap from quote",             f"{rnd.get('gap_from_original_pct',0):.1f}%"),
                             ("Decision",                   rnd.get("decision","")),
-                            ("Counter (pre-GST)",          f"₹{rnd.get('new_offered_pretax',0):,.2f}"),
-                            ("Counter CGST",               f"₹{rnd.get('new_offered_cgst',0):,.2f}"),
-                            ("Counter SGST",               f"₹{rnd.get('new_offered_sgst',0):,.2f}"),
-                            ("Counter total (incl. GST)",  f"₹{rnd.get('new_invoice_total',0):,.2f}"),
+                            ("Counter (pre-GST)",          f"Rs.{rnd.get('new_offered_pretax',0):,.2f}"),
+                            ("Counter CGST",               f"Rs.{rnd.get('new_offered_cgst',0):,.2f}"),
+                            ("Counter SGST",               f"Rs.{rnd.get('new_offered_sgst',0):,.2f}"),
+                            ("Counter total (incl. GST)",  f"Rs.{rnd.get('new_invoice_total',0):,.2f}"),
                             ("Discount applied",           f"{rnd.get('discount_percent',0):.2f}%"),
                         ]:
                             st.markdown(f'<div class="cs"><b style="color:#8B6914">{lbl}:</b> {val}</div>',
@@ -471,13 +517,11 @@ with t2:
                         st.markdown("**📧 Email Sent to Buyer:**")
                         show_email(make_neg_email(ai, rnd))
 
-        # ── Email not sent yet ────────────────────────────────
+        # Email not sent yet
         if not st.session_state.email_sent:
             st.markdown('<div class="sec">📧 Email Ready to Send</div>', unsafe_allow_html=True)
-            if not st.session_state.neg_rounds:
-                draft = make_email(ai, pricing)
-            else:
-                draft = make_neg_email(ai, st.session_state.neg_rounds[-1])
+            draft = make_email(ai, pricing) if not st.session_state.neg_rounds \
+                    else make_neg_email(ai, st.session_state.neg_rounds[-1])
             show_email(draft)
 
             if st.button("📤 Send Email to Buyer", type="primary", use_container_width=True):
@@ -485,11 +529,11 @@ with t2:
                 st.session_state.waiting    = True
                 st.rerun()
 
-        # ── Email sent — waiting ──────────────────────────────
+        # Waiting for buyer reply
         elif st.session_state.waiting:
             st.markdown('<div class="sec">📧 Email Sent</div>', unsafe_allow_html=True)
             st.success("✅ Email sent to buyer successfully!")
-            st.markdown('<div class="waiting">⏳ &nbsp;<b>Waiting for buyer\'s response...</b> — Enter buyer\'s reply below when received</div>',
+            st.markdown('<div class="waiting"><b>Waiting for buyer response...</b> — Enter buyer reply below when received</div>',
                         unsafe_allow_html=True)
 
             if st.session_state.revised_path and os.path.exists(st.session_state.revised_path):
@@ -500,13 +544,13 @@ with t2:
 
             st.markdown("---")
             st.markdown('<div class="sec">🤝 Buyer Negotiation</div>', unsafe_allow_html=True)
-            reply = st.chat_input("e.g. 'Can you give 5% discount?' or 'We can pay ₹50,00,00,000'")
+            reply = st.chat_input("e.g. 'Can you give 5% discount?' or 'We can pay Rs.50,00,00,000'")
 
             if reply:
                 with st.status("🤝 Negotiation Agent running...", expanded=True):
                     updated = NegotiationAgent().handle_counter_offer(st.session_state.lead, reply)
                     out     = updated["negotiation_outcome"]
-                    st.write(f"✅ Decision: **{out['decision']}** | Counter: ₹{out.get('new_invoice_total',0):,.2f} | Discount: {out.get('discount_percent',0):.2f}%")
+                    st.write(f"✅ Decision: **{out['decision']}** | Counter: Rs.{out.get('new_invoice_total',0):,.2f} | Discount: {out.get('discount_percent',0):.2f}%")
 
                 st.session_state.neg_rounds.append(out)
                 st.session_state.lead = updated
@@ -540,8 +584,8 @@ with t2:
 
         pricing = st.session_state.pricing
         for col, (label, val) in zip(st.columns(3), [
-            ("Original Quote",     f"₹{pricing.get('grand_total_invoice',0):,.2f}"),
-            ("Final Agreed Price", f"₹{last.get('new_invoice_total', pricing.get('grand_total_invoice',0)):,.2f}"),
+            ("Original Quote",     f"Rs.{pricing.get('grand_total_invoice',0):,.2f}"),
+            ("Final Agreed Price", f"Rs.{last.get('new_invoice_total', pricing.get('grand_total_invoice',0)):,.2f}"),
             ("Negotiation Rounds", str(len(st.session_state.neg_rounds))),
         ]):
             with col: st.metric(label, val)
