@@ -1,0 +1,13 @@
+product_name,sku,category,purity,weight_per_unit_grams,purchase_cost_per_gram,making_charges_per_gram,wastage_percent,packaging_cost,hallmarking_fee,stock_qty,min_delivery_days,description
+Gold Bar 1KG,GB-1KG,Gold Bar,24K,1000,6800,0,0,500,200,20,3,Pure 24K gold bar 1 kilogram - BIS certified hallmarked
+Gold Bar 500g,GB-500G,Gold Bar,24K,500,6800,0,0,300,200,40,2,Pure 24K gold bar 500 grams - BIS certified hallmarked
+Gold Bar 100g,GB-100G,Gold Bar,24K,100,6800,0,0,150,200,100,2,Pure 24K gold bar 100 grams - BIS certified hallmarked
+Gold Bar 50g,GB-50G,Gold Bar,24K,50,6800,0,0,100,150,200,1,Pure 24K gold bar 50 grams - BIS certified hallmarked
+Gold Bar 10g,GB-10G,Gold Bar,24K,10,6800,0,0,50,100,500,1,Pure 24K gold bar 10 grams - BIS certified hallmarked
+Gold Coin 10g,GC-10G,Gold Coin,24K,10,6800,50,0.5,50,100,300,1,24K gold coin 10 grams with certificate
+Gold Coin 5g,GC-5G,Gold Coin,24K,5,6800,60,0.5,30,100,500,1,24K gold coin 5 grams with certificate
+Gold Coin 1g,GC-1G,Gold Coin,24K,1,6800,80,0.5,20,100,1000,1,24K gold coin 1 gram with certificate
+Gold Jewellery Necklace,GJ-NECK-22K,Jewellery,22K,30,6233,350,2.5,100,150,50,5,22K handcrafted gold necklace 30 grams
+Gold Jewellery Bangle,GJ-BANG-22K,Jewellery,22K,20,6233,300,2,80,150,80,5,22K handcrafted gold bangle pair 20 grams
+Gold Jewellery Ring,GJ-RING-22K,Jewellery,22K,5,6233,400,2,30,100,200,3,22K gold ring 5 grams
+Gold Jewellery Earrings,GJ-EARR-22K,Jewellery,22K,8,6233,380,2,40,100,150,3,22K gold earrings 8 grams pair
