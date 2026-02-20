@@ -7,6 +7,7 @@ from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from datetime import datetime
+from pathlib import Path
 
 
 class ProposalGeneratorAgent:
@@ -36,7 +37,8 @@ class ProposalGeneratorAgent:
         self.COMPANY_ACC     = "5012345678901234"
         self.COMPANY_IFSC    = "HDFC0001234"
         self.COMPANY_BRANCH  = "Nungambakkam, Chennai"
-        self.LOGO_PATH       = r"C:\Users\User\Downloads\gold_jewellery_ai_automation\aard_new_logo.png"
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        self.LOGO_PATH = BASE_DIR / "assets" / "aard_new_logo.png"
 
     # ── PUBLIC ────────────────────────────────────────────────
 
